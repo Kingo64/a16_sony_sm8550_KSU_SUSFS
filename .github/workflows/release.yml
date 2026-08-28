@@ -544,7 +544,6 @@ jobs:
           echo "Device: ${{ matrix.device }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "KernelSU Variant: ${{ github.event.inputs.ksu_variant }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "SUSFS Enabled: ${{ github.event.inputs.enable_susfs }}" | tee -a build-info-${{ matrix.device }}.txt
-          echo "KPM Enabled: ${{ github.event.inputs.enable_kpm }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "ZRAM/LZ4KD Enabled: ${{ github.event.inputs.enable_zram }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "Release Version: ${{ github.event.inputs.release_version }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "Build Date: $(date -u)" | tee -a build-info-${{ matrix.device }}.txt
