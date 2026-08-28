@@ -182,8 +182,6 @@ jobs:
             fi
           else
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt
-            git -C susfs4ksu checkout "${{ env.SUSFS_RESUKISU_PIN }}" 2>&1 | tee -a error-log-${{ matrix.device }}.txt
-            echo "Pinned SUSFS to ${{ env.SUSFS_RESUKISU_PIN }} (last commit before fake_status sync; ReSukiSU main lacks that glue)" | tee -a error-log-${{ matrix.device }}.txt
           fi
 
           git clone --depth=1 https://github.com/WildKernels/kernel_patches.git 2>&1 | tee -a error-log-${{ matrix.device }}.txt &
@@ -443,9 +441,6 @@ jobs:
           FEATURES="${{ env.KERNEL_LOCALVERSION }}"
           if [ "${{ github.event.inputs.enable_susfs }}" == "true" ]; then
             FEATURES="${FEATURES}-SUSFS"
-          fi
-          if [ "${{ github.event.inputs.enable_kpm }}" == "true" ]; then
-            FEATURES="${FEATURES}-KPM"
           fi
 
           # Set version via defconfig - disable auto and set full string
