@@ -16,11 +16,6 @@ on:
         required: true
         default: true
         type: boolean
-      enable_kpm:
-        description: 'Enable KPM (Kernel Patch Module)'
-        required: true
-        default: true
-        type: boolean
       enable_zram:
         description: 'Enable ZRAM optimizations (LZ4KD)'
         required: true
@@ -36,10 +31,10 @@ env:
   AOSP_TOOLCHAIN_BRANCH: android16
   AOSP_CLANG_VERSION: r547379
   KERNEL_LOCALVERSION: spacealtctrl-sukisu
-  ANDROID_VERSION: android13
+  ANDROID_VERSION: android14
   KERNEL_VERSION: 5.15
-  SUSFS_RESUKISU_PIN: e4bd49f708108cc829fe7ca079312ea8fefa89f8
-  RESUKISU_PIN: a13d71f699093f0c1da7ba442881eccaa8e4321a
+  SUSFS_RESUKISU_PIN: main
+  RESUKISU_PIN: main
 
 jobs:
   build:
@@ -394,9 +389,6 @@ jobs:
           echo "Using defconfig: $DEFCONFIG" | tee -a ../error-log-${{ matrix.device }}.txt
 
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
-          if [ "${{ github.event.inputs.enable_kpm }}" == "true" ]; then
-            echo "CONFIG_KPM=y" >> "$DEFCONFIG"
-          fi
           echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG"
 
           if [ "${{ github.event.inputs.enable_susfs }}" == "true" ]; then
@@ -549,37 +541,6 @@ jobs:
           fi
           echo "✓ Build verified successfully:" | tee -a error-log-${{ matrix.device }}.txt
           ls -lh kernel/out/arch/arm64/boot/Image | tee -a error-log-${{ matrix.device }}.txt
-          echo "" >> error-log-${{ matrix.device }}.txt
-
-      - name: Apply KPM patch (Official Method)
-        if: ${{ github.event.inputs.enable_kpm == 'true' }}
-        run: |
-          echo "--- KPM Patch Application (Official Method) ---" | tee -a error-log-${{ matrix.device }}.txt
-
-          # Apply patch
-          cd kernel/out/arch/arm64/boot/
-          echo "Downloading patch_linux..." | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch_linux
-          chmod 777 patch_linux
-
-          echo "Running patch_linux..." | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-          if ./patch_linux 2>&1 | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt; then
-            echo "✓ KPM patch applied successfully" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-          else
-            echo "✗ ERROR: KPM patch application failed" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-            exit 1
-          fi
-
-          rm -rf Image
-          mv oImage Image
-
-          if [ -f "Image" ]; then
-            echo "✓ Patched Image verified" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-          else
-            echo "✗ ERROR: Patched Image not found" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
-            exit 1
-          fi
-          cd ../../../../..
           echo "" >> error-log-${{ matrix.device }}.txt
 
       - name: Log build configuration
