@@ -149,6 +149,12 @@ jobs:
           tar xz -C clang
           echo "✓ Clang downloaded and extracted" | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
+      
+      - name: Save Clang Cache
+        uses: actions/cache/save@v6.1.0
+        with:
+          path: clang
+          key: clang-${{ env.AOSP_TOOLCHAIN_BRANCH }}-${{ env.AOSP_CLANG_VERSION }}
 
       - name: Cache ccache
         uses: hendrikmuhs/ccache-action@v1.2.24
@@ -499,16 +505,16 @@ jobs:
           echo "✓ Ccache configured" | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
 
-      - name: Pre-build Setup
-        run: |
-          echo "--- Pre-build Setup ---" | tee -a error-log-${{ matrix.device }}.txt
-          sudo mkdir -p /mnt/tmpfs
-          sudo mount -t tmpfs -o size=10G tmpfs /mnt/tmpfs
-          mkdir -p /mnt/tmpfs/out
-          ln -sf /mnt/tmpfs/out kernel/out
-          echo "✓ tmpfs mounted and linked" | tee -a error-log-${{ matrix.device }}.txt
-          df -h | tee -a error-log-${{ matrix.device }}.txt
-          echo "" >> error-log-${{ matrix.device }}.txt
+      #- name: Pre-build Setup
+      #  run: |
+      #    echo "--- Pre-build Setup ---" | tee -a error-log-${{ matrix.device }}.txt
+      #    sudo mkdir -p /mnt/tmpfs
+      #    sudo mount -t tmpfs -o size=10G tmpfs /mnt/tmpfs
+      #    mkdir -p /mnt/tmpfs/out
+      #    ln -sf /mnt/tmpfs/out kernel/out
+      #    echo "✓ tmpfs mounted and linked" | tee -a error-log-${{ matrix.device }}.txt
+      #    df -h | tee -a error-log-${{ matrix.device }}.txt
+      #    echo "" >> error-log-${{ matrix.device }}.txt
 
       - name: Build kernel
         working-directory: kernel
