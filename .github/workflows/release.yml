@@ -167,7 +167,7 @@ jobs:
       - name: Setup swap
         run: |
           echo "Setting up swap..." | tee -a error-log-${{ matrix.device }}.txt
-          sudo fallocate -l 10G /swapfile
+          sudo fallocate -l 16G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
@@ -525,6 +525,7 @@ jobs:
             CROSS_COMPILE=aarch64-linux-gnu-
             CROSS_COMPILE_ARM32=arm-linux-gnueabi-
             KCFLAGS="-Wframe-larger-than=15000"
+            LTO_JOBS=2
         run: |
           echo "--- Kernel Build ---" | tee -a ../error-log-${{ matrix.device }}.txt
           export PATH=$GITHUB_WORKSPACE/clang/bin:$PATH
