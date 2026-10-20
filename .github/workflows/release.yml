@@ -332,25 +332,25 @@ jobs:
           echo "ℹ Main SUSFS patch applied (-f); rejected hunks are handled by Sony fixup" | tee -a ../error-log-${{ matrix.device }}.txt
           echo "" >> ../error-log-${{ matrix.device }}.txt
 
-      - name: Apply Sony SUSFS fixup
-        if: ${{ github.event.inputs.enable_susfs == 'true' }}
-        working-directory: kernel
-        run: |
-          echo "--- Sony SUSFS Fixup ---" | tee -a ../error-log-${{ matrix.device }}.txt
-          if ! patch -p1 -f < ../build-configs/patches/sony_sm8550_susfs_fixup.patch 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt; then
-            echo "✗ ERROR: Sony SUSFS fixup patch failed!" | tee -a ../error-log-${{ matrix.device }}.txt
-            exit 1
-          fi
-          if ! grep -q 'linux/susfs_def.h' fs/namespace.c; then
-            echo "✗ ERROR: susfs_def.h not included in fs/namespace.c after fixup!" | tee -a ../error-log-${{ matrix.device }}.txt
-            exit 1
-          fi
-          if ! grep -q 'CL_COPY_MNT_NS' fs/namespace.c; then
-            echo "✗ ERROR: CL_COPY_MNT_NS not defined in fs/namespace.c after fixup!" | tee -a ../error-log-${{ matrix.device }}.txt
-            exit 1
-          fi
-          echo "✓ Sony SUSFS fixup applied successfully" | tee -a ../error-log-${{ matrix.device }}.txt
-          echo "" >> ../error-log-${{ matrix.device }}.txt
+      # - name: Apply Sony SUSFS fixup
+      #   if: ${{ github.event.inputs.enable_susfs == 'true' }}
+      #   working-directory: kernel
+      #   run: |
+      #     echo "--- Sony SUSFS Fixup ---" | tee -a ../error-log-${{ matrix.device }}.txt
+      #     if ! patch -p1 -f < ../build-configs/patches/sony_sm8550_susfs_fixup.patch 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt; then
+      #       echo "✗ ERROR: Sony SUSFS fixup patch failed!" | tee -a ../error-log-${{ matrix.device }}.txt
+      #       exit 1
+      #     fi
+      #     if ! grep -q 'linux/susfs_def.h' fs/namespace.c; then
+      #       echo "✗ ERROR: susfs_def.h not included in fs/namespace.c after fixup!" | tee -a ../error-log-${{ matrix.device }}.txt
+      #       exit 1
+      #     fi
+      #     if ! grep -q 'CL_COPY_MNT_NS' fs/namespace.c; then
+      #       echo "✗ ERROR: CL_COPY_MNT_NS not defined in fs/namespace.c after fixup!" | tee -a ../error-log-${{ matrix.device }}.txt
+      #       exit 1
+      #     fi
+      #     echo "✓ Sony SUSFS fixup applied successfully" | tee -a ../error-log-${{ matrix.device }}.txt
+      #     echo "" >> ../error-log-${{ matrix.device }}.txt
 
       - name: Apply task_mmu.c fix for android13-5.15
         working-directory: kernel
