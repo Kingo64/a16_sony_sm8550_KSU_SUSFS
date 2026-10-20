@@ -3,16 +3,13 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      ksu_variant:
-        description: 'KernelSU Variant'
-        required: true
-        default: 'BakaSU'
-        type: choice
-        options:
-          - SukiSU
-          - BakaSU
       enable_susfs:
         description: 'Enable SUSFS'
+        required: true
+        default: true
+        type: boolean
+      enable_kpm:
+        description: 'Enable KPM (Kernel Patch Module)'
         required: true
         default: true
         type: boolean
@@ -37,7 +34,6 @@ env:
   AOSP_CLANG_VERSION: r596125
   ANDROID_VERSION: android13
   KERNEL_VERSION: 5.15
-  BAKASU_PIN: sync-susfs
 
 jobs:
   build:
@@ -46,24 +42,32 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      BUILD_SLUG: ${{ github.event.inputs.ksu_variant == 'BakaSU' && 'bakasu' || 'sukisu' }}
+      BUILD_SLUG: sukisu
     strategy:
       matrix:
         device: [pdx234]
       fail-fast: false
     steps:
-      - name: Maximize Build Space
-        uses: AdityaGarg8/remove-unwanted-software@v5
+      - name: Free Disk Space
+        if: true
+        uses: endersonmenezes/free-disk-space@v4 # Use @main for latest, @v3 for stable
         with:
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
-          remove-large-packages: 'true'
-          remove-swapfile: 'true'
-          remove-cached-tools: 'false'
-          verbose: 'true'
+          remove_android: true
+          remove_dotnet: true
+          remove_haskell: true
+          remove_tool_cache: true
+          remove_swap: true
+          remove_packages: "azure-cli google-cloud-cli microsoft-edge-stable google-chrome-stable firefox postgresql* temurin-* mysql* dotnet-sdk-*"
+          remove_packages_one_command: true
+          remove_folders: "/usr/share/swift /usr/share/miniconda /usr/share/az* /usr/local/lib/node_modules /usr/local/share/chromium /usr/local/share/powershell /usr/local/julia /usr/local/aws-cli /usr/local/aws-sam-cli /usr/share/gradle"
+          rm_cmd: "rmz" # Use 'rmz' for faster deletion (default: 'rm')
+          rmz_version: "3.2.0" # Required when rm_cmd is 'rmz'
+          testing: false
+
+      - name: Setup more Swap (for LTO)
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 16
 
       - name: Install packages
         env:
@@ -164,17 +168,6 @@ jobs:
           max-size: 3G
           save: true
 
-      - name: Setup swap
-        run: |
-          echo "Setting up swap..." | tee -a error-log-${{ matrix.device }}.txt
-          sudo fallocate -l 16G /swapfile
-          sudo chmod 600 /swapfile
-          sudo mkswap /swapfile
-          sudo swapon /swapfile
-          sudo swapon -s
-          echo "✓ Swap configured" | tee -a error-log-${{ matrix.device }}.txt
-          echo "" >> error-log-${{ matrix.device }}.txt
-
       - name: Clone SukiSU and SUSFS dependencies
         run: |
           echo "--- Cloning Dependencies ---" | tee -a error-log-${{ matrix.device }}.txt
@@ -183,14 +176,10 @@ jobs:
           SUSFS_BRANCH="gki-${{ env.ANDROID_VERSION }}-${{ env.KERNEL_VERSION }}"
           echo "Using SUSFS branch: $SUSFS_BRANCH" | tee -a error-log-${{ matrix.device }}.txt
 
-          if [ "${{ github.event.inputs.ksu_variant }}" == "SukiSU" ]; then
-            if ! git clone --depth=1 https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt; then
-              echo "ShirkNeko susfs4ksu missing branch $SUSFS_BRANCH, falling back to simonpunk" | tee -a error-log-${{ matrix.device }}.txt
-              rm -rf susfs4ksu
-              git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt
-            fi
-          else
-            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt
+          if ! git clone --depth=1 https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt; then
+            echo "ShirkNeko susfs4ksu missing branch $SUSFS_BRANCH, falling back to simonpunk" | tee -a error-log-${{ matrix.device }}.txt
+            rm -rf susfs4ksu
+            git clone --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH" 2>&1 | tee -a error-log-${{ matrix.device }}.txt
           fi
 
           git clone --depth=1 https://github.com/WildKernels/kernel_patches.git 2>&1 | tee -a error-log-${{ matrix.device }}.txt &
@@ -251,21 +240,16 @@ jobs:
       - name: Add KernelSU variant
         working-directory: kernel
         run: |
-          echo "--- Adding ${{ github.event.inputs.ksu_variant }} ---" | tee -a ../error-log-${{ matrix.device }}.txt
+          echo "--- Adding KSU ---" | tee -a ../error-log-${{ matrix.device }}.txt
 
-          if [ "${{ github.event.inputs.ksu_variant }}" == "BakaSU" ]; then
-            SETUP_URL="https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh"
-            BRANCH="-s ${{ env.BAKASU_PIN }}"
-          else
-            SETUP_URL="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
-            BRANCH="-s builtin"
-          fi
+          SETUP_URL="https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh"
+          BRANCH="-s builtin"
           echo "Using setup: $SETUP_URL ($BRANCH)" | tee -a ../error-log-${{ matrix.device }}.txt
 
           if curl -LSs "$SETUP_URL" | bash $BRANCH 2>&1 | tee -a ../error-log-${{ matrix.device }}.txt; then
-            echo "✓ ${{ github.event.inputs.ksu_variant }} setup completed" | tee -a ../error-log-${{ matrix.device }}.txt
+            echo "✓ KSU setup completed" | tee -a ../error-log-${{ matrix.device }}.txt
           else
-            echo "✗ ERROR: ${{ github.event.inputs.ksu_variant }} setup failed!" | tee -a ../error-log-${{ matrix.device }}.txt
+            echo "✗ ERROR: KSU setup failed!" | tee -a ../error-log-${{ matrix.device }}.txt
             exit 1
           fi
 
@@ -413,6 +397,9 @@ jobs:
           echo "Using defconfig: $DEFCONFIG" | tee -a ../error-log-${{ matrix.device }}.txt
 
           echo "CONFIG_KSU=y" >> "$DEFCONFIG"
+          if [ "${{ github.event.inputs.enable_kpm }}" == "true" ]; then
+            echo "CONFIG_KPM=y" >> "$DEFCONFIG"
+          fi
           echo "CONFIG_KSU_SUSFS_SUS_SU=n" >> "$DEFCONFIG"
 
           if [ "${{ github.event.inputs.enable_susfs }}" == "true" ]; then
@@ -505,17 +492,6 @@ jobs:
           echo "✓ Ccache configured" | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
 
-      #- name: Pre-build Setup
-      #  run: |
-      #    echo "--- Pre-build Setup ---" | tee -a error-log-${{ matrix.device }}.txt
-      #    sudo mkdir -p /mnt/tmpfs
-      #    sudo mount -t tmpfs -o size=10G tmpfs /mnt/tmpfs
-      #    mkdir -p /mnt/tmpfs/out
-      #    ln -sf /mnt/tmpfs/out kernel/out
-      #    echo "✓ tmpfs mounted and linked" | tee -a error-log-${{ matrix.device }}.txt
-      #    df -h | tee -a error-log-${{ matrix.device }}.txt
-      #    echo "" >> error-log-${{ matrix.device }}.txt
-
       - name: Build kernel
         working-directory: kernel
         env:
@@ -561,12 +537,44 @@ jobs:
           ls -lh kernel/out/arch/arm64/boot/Image | tee -a error-log-${{ matrix.device }}.txt
           echo "" >> error-log-${{ matrix.device }}.txt
 
+      - name: Apply KPM patch (Official Method)
+        if: ${{ github.event.inputs.enable_kpm == 'true' }}
+        run: |
+          echo "--- KPM Patch Application (Official Method) ---" | tee -a error-log-${{ matrix.device }}.txt
+
+          # Apply patch
+          cd kernel/out/arch/arm64/boot/
+          echo "Downloading patch_linux..." | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+          curl -LSs "https://raw.githubusercontent.com/ShirkNeko/SukiSU_patch/refs/heads/main/kpm/patch_linux" -o patch_linux
+          chmod 777 patch_linux
+
+          echo "Running patch_linux..." | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+          if ./patch_linux 2>&1 | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt; then
+            echo "✓ KPM patch applied successfully" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+          else
+            echo "✗ ERROR: KPM patch application failed" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+            exit 1
+          fi
+
+          rm -rf Image
+          mv oImage Image
+
+          if [ -f "Image" ]; then
+            echo "✓ Patched Image verified" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+          else
+            echo "✗ ERROR: Patched Image not found" | tee -a $GITHUB_WORKSPACE/error-log-${{ matrix.device }}.txt
+            exit 1
+          fi
+          cd ../../../../..
+          echo "" >> error-log-${{ matrix.device }}.txt
+
       - name: Log build configuration
         run: |
           echo "=== Build Configuration Summary ===" | tee build-info-${{ matrix.device }}.txt
           echo "Device: ${{ matrix.device }}" | tee -a build-info-${{ matrix.device }}.txt
-          echo "KernelSU Variant: ${{ github.event.inputs.ksu_variant }}" | tee -a build-info-${{ matrix.device }}.txt
+          echo "KernelSU Variant: SukiSU | tee -a build-info-${{ matrix.device }}.txt
           echo "SUSFS Enabled: ${{ github.event.inputs.enable_susfs }}" | tee -a build-info-${{ matrix.device }}.txt
+          echo "KPM Enabled: ${{ github.event.inputs.enable_kpm }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "ZRAM/LZ4KD Enabled: ${{ github.event.inputs.enable_zram }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "Release Version: ${{ github.event.inputs.release_version }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "Build Date: $(date -u)" | tee -a build-info-${{ matrix.device }}.txt
@@ -648,7 +656,7 @@ jobs:
     permissions:
       contents: write
     env:
-      BUILD_SLUG: ${{ github.event.inputs.ksu_variant == 'BakaSU' && 'resukisu' || 'sukisu' }}
+      BUILD_SLUG: sukisu
     steps:
       - name: Download build artifacts for pdx234
         uses: actions/download-artifact@v8.0.2
@@ -666,13 +674,8 @@ jobs:
           cp artifacts/pdx234/build-info-pdx234.txt release-assets/build-info-pdx234.txt
           cp artifacts/pdx234/AnyKernel3-pdx234-*.zip release-assets/
 
-          if [ "${{ github.event.inputs.ksu_variant }}" == "BakaSU" ]; then
-            MGR_REPO="Baka-SU/BakaSU"
-            MGR_ARTIFACT="Manager-release"
-          else
-            MGR_REPO="SukiSU-Ultra/SukiSU-Ultra"
-            MGR_ARTIFACT="manager"
-          fi
+          MGR_REPO="SukiSU-Ultra/SukiSU-Ultra"
+          MGR_ARTIFACT="manager"
           echo "Fetching '$MGR_ARTIFACT' from $MGR_REPO build-manager.yml artifacts (latest build, matches compiled kernel)..."
 
           MGR_FOUND=""
@@ -711,14 +714,9 @@ jobs:
             fi
           fi
 
-          VARIANT="${{ github.event.inputs.ksu_variant }}"
-          if [ "$VARIANT" == "BakaSU" ]; then
-            VARIANT_FEATURE="BakaSU (pinned ${BAKASU_PIN:0:7} - last build with KPM)"
-            MANAGER_REPO="https://github.com/Baka-SU/BakaSU"
-          else
-            VARIANT_FEATURE="SukiSU (builtin)"
-            MANAGER_REPO="https://github.com/SukiSU-Ultra/SukiSU-Ultra"
-          fi
+          VARIANT=SukiSU
+          VARIANT_FEATURE="SukiSU (builtin)"
+          MANAGER_REPO="https://github.com/SukiSU-Ultra/SukiSU-Ultra"
 
           RELEASE_NAME="pdx234 Kernel: ${VARIANT} & SUSFS ${SUSFS_VERSION}"
           echo "RELEASE_NAME<<EOF" >> $GITHUB_ENV
@@ -737,6 +735,7 @@ jobs:
           -> Inline Hook
           -> Baseband-guard Support
           -> BBR Support
+          -> KPM ${{ github.event.inputs.enable_kpm == 'true' && 'Support' || 'not supported' }}
           -> LZ4KD ${{ github.event.inputs.enable_zram == 'true' && 'supported' || 'not supported' }}
           -> LZ4 1.10.0 ${{ github.event.inputs.enable_zram == 'true' && 'supported' || 'not supported' }}
 
