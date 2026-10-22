@@ -572,7 +572,7 @@ jobs:
         run: |
           echo "=== Build Configuration Summary ===" | tee build-info-${{ matrix.device }}.txt
           echo "Device: ${{ matrix.device }}" | tee -a build-info-${{ matrix.device }}.txt
-          echo "KernelSU Variant: SukiSU | tee -a build-info-${{ matrix.device }}.txt
+          echo "KernelSU Variant: SukiSU" | tee -a build-info-${{ matrix.device }}.txt
           echo "SUSFS Enabled: ${{ github.event.inputs.enable_susfs }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "KPM Enabled: ${{ github.event.inputs.enable_kpm }}" | tee -a build-info-${{ matrix.device }}.txt
           echo "ZRAM/LZ4KD Enabled: ${{ github.event.inputs.enable_zram }}" | tee -a build-info-${{ matrix.device }}.txt
